@@ -4,6 +4,10 @@ from grove_rgb_lcd import *
 from math import isnan
 import datetime
 import random
+import paho.mqtt.client as mqtt
+import json
+
+server = 'localhost'
 
 ultrasonic_ranger = 2
 dht_sensor_port = 7
@@ -14,6 +18,10 @@ last_change = datetime.datetime.now()
 
 last_temp = -1
 last_hum = -1
+
+client = mqtt.Client()
+client.connect(server, 1883, 60)
+client.loop_start()
 
 while True:
         try:
@@ -32,10 +40,12 @@ while True:
                 if last_range != current_range:
                         last_range = current_range
                         last_change = datetime.datetime.now()
+                        there = True
                 elif (now - last_change) > datetime.timedelta(seconds=10):
                         r = 0
                         g = 0
                         b = 0
+                        there = False
 
                 # Check if temp sensor is working
                 if isnan(temp) is True or isnan(hum) is True:
@@ -48,6 +58,7 @@ while True:
 
                 setRGB(r, g, b)
                 setText(now.strftime("%d/%m/%y") + " T:" + str(temp) + "C" + "\n" + now.strftime("%H:%M:%S") + " H:" + str(hum) + "%")
+                client.publish('smartclock', json.dumps({'temperature' : temp, 'humidity' : hum, 'presence' : there}), 1)
 
         except (IOError, TypeError) as e:
                 print(str(e))
@@ -61,3 +72,7 @@ while True:
                 break
 
         time.sleep(0.5)
+
+
+client.loop_stop()
+client.disconnect()
